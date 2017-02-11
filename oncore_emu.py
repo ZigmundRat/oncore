@@ -26,7 +26,7 @@ ser = serial.Serial(
     baudrate=9600
 )
 
-ser2 = serial.Serial('/dev/ttyUSB4', 115200, timeout=0.4)
+ser2 = serial.Serial('/dev/ttyUSB4', 115200, timeout=0.1)
 
 Ea = bytearray([0x40, 0x40, 0x45, 0x61,
 0x01, 0x01, 0x07, 0xCE, # 4
@@ -198,59 +198,69 @@ while True:
             ser.write(Bo)
 
         line = ser2.readline()
-        msg = pynmea2.parse(line)
-        if isinstance(msg, pynmea2.types.talker.GGA):
-            lat = int(324000000/90*(float(msg.lat)/100))
-            Ea[15] = 0xFF & (lat >> 24)
-            Ea[16] = 0xFF & (lat >> 16)
-            Ea[17] = 0xFF & (lat >> 8)
-            Ea[18] = 0xFF & lat
-            lon = int(648000000/180*(float(msg.lon)/100))
-            Ea[19] = 0xFF & (lon >> 24)
-            Ea[20] = 0xFF & (lon >> 16)
-            Ea[21] = 0xFF & (lon >> 8)
-            Ea[22] = 0xFF & lon
-        if isinstance(msg, pynmea2.types.talker.GSV) and int(msg.msg_num)<4:
-            Bb[4] = min(int(msg.num_sv_in_view),12)
-            index = (int(msg.msg_num)-1) * 4 * 7
-            Bb[5+index] = int(msg.sv_prn_num_1)
-            Bb[5+index+7] = int(msg.sv_prn_num_2)
-            Bb[5+index+14] = int(msg.sv_prn_num_3)
-            Bb[5+index+21] = int(msg.sv_prn_num_4)
-            Bb[5+index+3] = int(msg.elevation_deg_1)
-            Bb[5+index+7+3] = int(msg.elevation_deg_2)
-            Bb[5+index+14+3] = int(msg.elevation_deg_3)
-            Bb[5+index+21+3] = int(msg.elevation_deg_4)
-            Bb[5+index+4] = 0xFF & (int(msg.azimuth_1)>>8)
-            Bb[5+index+5] = 0xFF & int(msg.azimuth_1)
-            Bb[5+index+7+4] = 0xFF & (int(msg.azimuth_2)>>8)
-            Bb[5+index+7+5] = 0xFF & int(msg.azimuth_2)
-            Bb[5+index+14+4] = 0xFF & (int(msg.azimuth_3)>>8)
-            Bb[5+index+14+5] = 0xFF & int(msg.azimuth_3)
-            Bb[5+index+21+4] = 0xFF & (int(msg.azimuth_4)>>8)
-            Bb[5+index+21+5] = 0xFF & int(msg.azimuth_4)
+        while len(line) > 0:
+            msg = pynmea2.parse(line)
+            print str(msg)
+            if isinstance(msg, pynmea2.types.talker.GGA):
+                lat = int(324000000/90*(float(msg.lat)/100))
+                Ea[15] = 0xFF & (lat >> 24)
+                Ea[16] = 0xFF & (lat >> 16)
+                Ea[17] = 0xFF & (lat >> 8)
+                Ea[18] = 0xFF & lat
+                lon = int(648000000/180*(float(msg.lon)/100))
+                Ea[19] = 0xFF & (lon >> 24)
+                Ea[20] = 0xFF & (lon >> 16)
+                Ea[21] = 0xFF & (lon >> 8)
+                Ea[22] = 0xFF & lon
+            if isinstance(msg, pynmea2.types.talker.GSV) and int(msg.msg_num)<4:
+                Bb[4] = min(int(msg.num_sv_in_view),12)
+                index = (int(msg.msg_num)-1) * 4 * 7
+                Bb[5+index] = int(msg.sv_prn_num_1)
+                Bb[5+index+7] = int(msg.sv_prn_num_2)
+                Bb[5+index+14] = int(msg.sv_prn_num_3)
+                Bb[5+index+21] = int(msg.sv_prn_num_4)
+                Bb[5+index+3] = int(msg.elevation_deg_1)
+                Bb[5+index+7+3] = int(msg.elevation_deg_2)
+                Bb[5+index+14+3] = int(msg.elevation_deg_3)
+                Bb[5+index+21+3] = int(msg.elevation_deg_4)
+                Bb[5+index+4] = 0xFF & (int(msg.azimuth_1)>>8)
+                Bb[5+index+5] = 0xFF & int(msg.azimuth_1)
+                Bb[5+index+7+4] = 0xFF & (int(msg.azimuth_2)>>8)
+                Bb[5+index+7+5] = 0xFF & int(msg.azimuth_2)
+                Bb[5+index+14+4] = 0xFF & (int(msg.azimuth_3)>>8)
+                Bb[5+index+14+5] = 0xFF & int(msg.azimuth_3)
+                Bb[5+index+21+4] = 0xFF & (int(msg.azimuth_4)>>8)
+                Bb[5+index+21+5] = 0xFF & int(msg.azimuth_4)
 
-            Ea[38] = min(int(msg.num_sv_in_view),12)
-            Ea[39] = min(int(msg.num_sv_in_view),8)
-            if int(msg.msg_num) <3:
-                index = (int(msg.msg_num)-1) * 4 * 4
-                Ea[40+index] = int(msg.sv_prn_num_1)
-                Ea[40+index+4] = int(msg.sv_prn_num_2)
-                Ea[40+index+8] = int(msg.sv_prn_num_3)
-                Ea[40+index+12] = int(msg.sv_prn_num_4)
-                Ea[40+index+2] = int(msg.snr_1)
-                Ea[40+index+4+2] = int(msg.snr_2)
-                Ea[40+index+8+2] = int(msg.snr_3)
-                Ea[40+index+12+2] = int(msg.snr_4)
-                index = (int(msg.msg_num)-1) * 4 * 5
-                En[26+index] = int(msg.sv_prn_num_1)
-                En[26+5+index] = int(msg.sv_prn_num_2)
-                En[26+10+index] = int(msg.sv_prn_num_3)
-                En[26+15+index] = int(msg.sv_prn_num_4)
+                Ea[38] = min(int(msg.num_sv_in_view),12)
+                Ea[39] = min(int(msg.num_sv_in_view),8)
+                if int(msg.msg_num) <3:
+                    index = (int(msg.msg_num)-1) * 4 * 4
+                    Ea[40+index] = int(msg.sv_prn_num_1)
+                    Ea[40+index+4] = int(msg.sv_prn_num_2)
+                    Ea[40+index+8] = int(msg.sv_prn_num_3)
+                    Ea[40+index+12] = int(msg.sv_prn_num_4)
+                    if msg.snr_1 == '':
+                        msg.snr_1 = 0
+                    Ea[40+index+2] = int(msg.snr_1)
+                    if msg.snr_2 == '':
+                        msg.snr_2 = 0
+                    Ea[40+index+4+2] = int(msg.snr_2)
+                    if msg.snr_3 == '':
+                        msg.snr_3 = 0
+                    Ea[40+index+8+2] = int(msg.snr_3)
+                    if msg.snr_4 == '':
+                        msg.snr_4 = 0
+                    Ea[40+index+12+2] = int(msg.snr_4)
+                    index = (int(msg.msg_num)-1) * 4 * 5
+                    En[26+index] = int(msg.sv_prn_num_1)
+                    En[26+5+index] = int(msg.sv_prn_num_2)
+                    En[26+10+index] = int(msg.sv_prn_num_3)
+                    En[26+15+index] = int(msg.sv_prn_num_4)
+            line = ser2.readline()
 
 
 
-        print str(msg)
 
 #        checksum(Ec)
 #        ser.write(Ec)
