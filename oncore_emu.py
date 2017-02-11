@@ -5,6 +5,7 @@
 #
 import time
 import serial
+import pynmea2
 from fcntl import ioctl
 from termios import ( TIOCMIWAIT, TIOCM_RNG, TIOCM_DSR, TIOCM_CD, TIOCM_CTS)
 
@@ -25,19 +26,21 @@ ser = serial.Serial(
     baudrate=9600
 )
 
+ser2 = serial.Serial('/dev/ttyUSB4', 115200, timeout=0.4)
+
 Ea = bytearray([0x40, 0x40, 0x45, 0x61,
-0x01, 0x01, 0x07, 0xCE,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x0B, 0x96, 0x4F, 0x00,
-0x01, 0xEE, 0x62, 0x80,
-0x00, 0x00, 0x01, 0x00,
-0x00, 0x00, 0x01, 0x00,
-0x00, 0x00,
-0x00, 0x00,
-0x00, 0x00, # current DOP
-0x00,       # DOP type 0 = PDOP (3d fix)
-10, 8,
-0x02, 8, 0xFF, 0x82,
+0x01, 0x01, 0x07, 0xCE, # 4
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, # 8
+0x0B, 0x96, 0x4F, 0x00, # 15
+0x01, 0xEE, 0x62, 0x80, # 19
+0x00, 0x00, 0x01, 0x00, # 23
+0x00, 0x00, 0x01, 0x00, # 27
+0x00, 0x00, # 31
+0x00, 0x00, # 33
+0x00, 0x00, # 35 current DOP
+0x00,       # 37 DOP type 0 = PDOP (3d fix)
+10, 8,      # 38
+0x02, 8, 0xFF, 0x82, # 40
 0x04, 8, 0xFF, 0x82,
 0x06, 8, 0xFF, 0x82,
 0x08, 8, 0xFF, 0x82,
@@ -49,19 +52,19 @@ Ea = bytearray([0x40, 0x40, 0x45, 0x61,
 0xDF, 0x0D, 0x0A])
 
 En = bytearray([0x40, 0x40, 0x45, 0x6E,
-0x01,
-0x00,
-0x00, 0xC0,
-0x01,              # pps control mode
-0x00, 0x00, 0x01,  # pps rate
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, # time to next fire
-0x01,        # pulse status
-0x01,        # pulse ref
-0x00,        # solution status
-0x00,        # Time RAIM status
-0x00, 0x03,  # time solution accuracy estimate
-0x00,        # sawtooth
-0x02, 0x00, 0x00, 0x00, 0x01,
+0x01, # 4
+0x00, # 5
+0x00, 0xC0, # 6
+0x01,              # 8 pps control mode
+0x00, 0x00, 0x01,  # 9 pps rate
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, # 12 time to next fire
+0x01,        # 19 pulse status
+0x01,        # 20 pulse ref
+0x00,        # 21 solution status
+0x00,        # 22 Time RAIM status
+0x00, 0x03,  # 23 time solution accuracy estimate
+0x00,        # 25 sawtooth
+0x02, 0x00, 0x00, 0x00, 0x01, # 26
 0x04, 0x00, 0x00, 0x00, 0x02,
 0x06, 0x00, 0x00, 0x00, 0x03,
 0x08, 0x00, 0x00, 0x00, 0x04,
@@ -194,8 +197,65 @@ while True:
             checksum(Bo)
             ser.write(Bo)
 
+        line = ser2.readline()
+        msg = pynmea2.parse(line)
+        if isinstance(msg, pynmea2.types.talker.GGA):
+            lat = int(324000000/90*(float(msg.lat)/100))
+            Ea[15] = 0xFF & (lat >> 24)
+            Ea[16] = 0xFF & (lat >> 16)
+            Ea[17] = 0xFF & (lat >> 8)
+            Ea[18] = 0xFF & lat
+            lon = int(648000000/180*(float(msg.lon)/100))
+            Ea[19] = 0xFF & (lon >> 24)
+            Ea[20] = 0xFF & (lon >> 16)
+            Ea[21] = 0xFF & (lon >> 8)
+            Ea[22] = 0xFF & lon
+        if isinstance(msg, pynmea2.types.talker.GSV) and int(msg.msg_num)<4:
+            Bb[4] = min(int(msg.num_sv_in_view),12)
+            index = (int(msg.msg_num)-1) * 4 * 7
+            Bb[5+index] = int(msg.sv_prn_num_1)
+            Bb[5+index+7] = int(msg.sv_prn_num_2)
+            Bb[5+index+14] = int(msg.sv_prn_num_3)
+            Bb[5+index+21] = int(msg.sv_prn_num_4)
+            Bb[5+index+3] = int(msg.elevation_deg_1)
+            Bb[5+index+7+3] = int(msg.elevation_deg_2)
+            Bb[5+index+14+3] = int(msg.elevation_deg_3)
+            Bb[5+index+21+3] = int(msg.elevation_deg_4)
+            Bb[5+index+4] = 0xFF & (int(msg.azimuth_1)>>8)
+            Bb[5+index+5] = 0xFF & int(msg.azimuth_1)
+            Bb[5+index+7+4] = 0xFF & (int(msg.azimuth_2)>>8)
+            Bb[5+index+7+5] = 0xFF & int(msg.azimuth_2)
+            Bb[5+index+14+4] = 0xFF & (int(msg.azimuth_3)>>8)
+            Bb[5+index+14+5] = 0xFF & int(msg.azimuth_3)
+            Bb[5+index+21+4] = 0xFF & (int(msg.azimuth_4)>>8)
+            Bb[5+index+21+5] = 0xFF & int(msg.azimuth_4)
+
+            Ea[38] = min(int(msg.num_sv_in_view),12)
+            Ea[39] = min(int(msg.num_sv_in_view),8)
+            if int(msg.msg_num) <3:
+                index = (int(msg.msg_num)-1) * 4 * 4
+                Ea[40+index] = int(msg.sv_prn_num_1)
+                Ea[40+index+4] = int(msg.sv_prn_num_2)
+                Ea[40+index+8] = int(msg.sv_prn_num_3)
+                Ea[40+index+12] = int(msg.sv_prn_num_4)
+                Ea[40+index+2] = int(msg.snr_1)
+                Ea[40+index+4+2] = int(msg.snr_2)
+                Ea[40+index+8+2] = int(msg.snr_3)
+                Ea[40+index+12+2] = int(msg.snr_4)
+                index = (int(msg.msg_num)-1) * 4 * 5
+                En[26+index] = int(msg.sv_prn_num_1)
+                En[26+5+index] = int(msg.sv_prn_num_2)
+                En[26+10+index] = int(msg.sv_prn_num_3)
+                En[26+15+index] = int(msg.sv_prn_num_4)
+
+
+
+        print str(msg)
+
 #        checksum(Ec)
 #        ser.write(Ec)
         #print Ea
-        #print ''.join(format(x, '02x') for x in Ea)
+        print ''.join(format(x, '02x') for x in Ea)
+        print ''.join(format(x, '02x') for x in En)
+        print ''.join(format(x, '02x') for x in Bb)
 
