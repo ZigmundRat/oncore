@@ -215,22 +215,46 @@ while True:
             if isinstance(msg, pynmea2.types.talker.GSV) and int(msg.msg_num)<4:
                 Bb[4] = min(int(msg.num_sv_in_view),12)
                 index = (int(msg.msg_num)-1) * 4 * 7
-                Bb[5+index] = int(msg.sv_prn_num_1)
-                Bb[5+index+7] = int(msg.sv_prn_num_2)
-                Bb[5+index+14] = int(msg.sv_prn_num_3)
-                Bb[5+index+21] = int(msg.sv_prn_num_4)
-                Bb[5+index+3] = int(msg.elevation_deg_1)
-                Bb[5+index+7+3] = int(msg.elevation_deg_2)
-                Bb[5+index+14+3] = int(msg.elevation_deg_3)
-                Bb[5+index+21+3] = int(msg.elevation_deg_4)
-                Bb[5+index+4] = 0xFF & (int(msg.azimuth_1)>>8)
-                Bb[5+index+5] = 0xFF & int(msg.azimuth_1)
-                Bb[5+index+7+4] = 0xFF & (int(msg.azimuth_2)>>8)
-                Bb[5+index+7+5] = 0xFF & int(msg.azimuth_2)
-                Bb[5+index+14+4] = 0xFF & (int(msg.azimuth_3)>>8)
-                Bb[5+index+14+5] = 0xFF & int(msg.azimuth_3)
-                Bb[5+index+21+4] = 0xFF & (int(msg.azimuth_4)>>8)
-                Bb[5+index+21+5] = 0xFF & int(msg.azimuth_4)
+                if msg.sv_prn_num_1 != '':
+                    Bb[5+index] = int(msg.sv_prn_num_1)
+                    Bb[5+index+3] = int(msg.elevation_deg_1)
+                    Bb[5+index+4] = 0xFF & (int(msg.azimuth_1)>>8)
+                    Bb[5+index+5] = 0xFF & int(msg.azimuth_1)
+                else:
+                    Bb[5+index]   = 0
+                    Bb[5+index+3] = 0
+                    Bb[5+index+4] = 0
+                    Bb[5+index+5] = 0
+                if msg.sv_prn_num_2 != '':
+                    Bb[5+index+7]   = int(msg.sv_prn_num_2)
+                    Bb[5+index+7+3] = int(msg.elevation_deg_2)
+                    Bb[5+index+7+4] = 0xFF & (int(msg.azimuth_2)>>8)
+                    Bb[5+index+7+5] = 0xFF & int(msg.azimuth_2)
+                else:
+                    Bb[5+index+7]   = 0
+                    Bb[5+index+7+3] = 0
+                    Bb[5+index+7+4] = 0
+                    Bb[5+index+7+5] = 0
+                if msg.sv_prn_num_3 != '':
+                    Bb[5+index+14] = int(msg.sv_prn_num_3)
+                    Bb[5+index+14+3] = int(msg.elevation_deg_3)
+                    Bb[5+index+14+4] = 0xFF & (int(msg.azimuth_3)>>8)
+                    Bb[5+index+14+5] = 0xFF & int(msg.azimuth_3)
+                else:
+                    Bb[5+index+14]   = 0
+                    Bb[5+index+14+3] = 0
+                    Bb[5+index+14+4] = 0
+                    Bb[5+index+14+5] = 0
+                if msg.sv_prn_num_4 != '':
+                    Bb[5+index+21] = int(msg.sv_prn_num_4)
+                    Bb[5+index+21+3] = int(msg.elevation_deg_4)
+                    Bb[5+index+21+4] = 0xFF & (int(msg.azimuth_4)>>8)
+                    Bb[5+index+21+5] = 0xFF & int(msg.azimuth_4)
+                else:
+                    Bb[5+index+21]   = 0
+                    Bb[5+index+21+3] = 0
+                    Bb[5+index+21+4] = 0
+                    Bb[5+index+21+5] = 0
 
                 Ea[38] = min(int(msg.num_sv_in_view),12)
                 Ea[39] = min(int(msg.num_sv_in_view),8)
